@@ -1,0 +1,9 @@
+repos:
+  -   repo: local
+      hooks:
+        -   id: pretty
+            name: pretty
+            entry: yarn pretty
+            language: system
+            files: \.(js|ts)$
+            stages: [commit]

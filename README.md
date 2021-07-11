@@ -19,6 +19,11 @@ Tutorial: https://dev.to/codr/discord-ears-bot-on-heroku-4606
 ## Docker
 If you prefer using Docker instead of manually installing it.
 Copy the `Dockerfile.sample` to `Dockerfile` and edit it.
+---
+**TODO** rewrite Dockerfile to reduce number of intermediate images, point to new repo (or use local checkout if supported by Heroku)
+
+---
+ 
 Near the bottom you have to provide API Credentials either using the `settings.json` file or setting the ENV variables.
 Refer to the settings section below for details on these.
 Once you've configured the Dockerfile you can build and run it:
@@ -28,32 +33,30 @@ Once you've configured the Dockerfile you can build and run it:
 3. Proceed to Usage section below.
 
 ## Installation
-You need nodeJS version 12+ with npm on your machine.
-Using shell or command prompt execute the following:
-```
-git clone https://github.com/healzer/DiscordEarsBot.git
-cd DiscordEarsBot
-npm install
-```
+You need nodeJS version 12+ with yarn on your machine.
+Within the root of the repo run `yarn`
 
 ## Settings
 Create a (free) discord bot and obtain the API credentials (Bot Token). Here's an easy tutorial: https://www.writebots.com/discord-bot-token/ Note: Give your bot enough permissions or simply grant it Administrator rights.
 
-Create a (free) WitAI account and obtain the API credentials (Server Access Token): https://wit.ai/
+Create a Google Cloud account and obtain the API credentials (Server Access Token): https://wit.ai/
 
-Rename the file `settings-sample.json` to `settings.json` and enter the obtained API credentials:
+Create a file `settings.json` and enter the obtained API credentials:
 ```
 {
     "discord_token": "your_token",
-    "wit_ai_token": "your_token"
 }
 ```
 
 If you are using Digitalocean Apps, Heroku or another service you can also use Environment Variables instead of a settings file. Configure these with the appropriate values:
 ```
 DISCORD_TOK
-WITAPIKEY
 ```
+---
+**TODO** use a better envvar name
+
+---
+
 
 ## Running
 
@@ -73,6 +76,13 @@ By now you have a discord server, the DiscordEarsBot is running and is a part of
 
 1. Enter one of your voice channels.
 2. In one of your text channels type: `*join`, the bot will join the voice channel.
+---
+**TODO**
+* figure out and document which text channel gets the transcription
+* should we support transcription via DM instead of shared channels?
+
+---
+
 3. Everything said within that channel will be transcribed into text (as long as the bot is within the voice channel).
 4. Type `*leave` to make the bot leave the voice channel.
 5. Type `*help` for a list of commands.
@@ -82,11 +92,14 @@ By now you have a discord server, the DiscordEarsBot is running and is a part of
 - Each user is a separate audio channel, the bot hears everyone separately.
 - Only when your user picture turns green in the voice channel will the bot receive your audio.
 - A long pause interrupts the audio input.
-- (WitAI only) The duration of a single audio input is limited to 20 seconds, longer audio is not transcribed.
+- The duration of a single audio input is limited to 20 seconds, longer audio is not (yet!) transcribed.
 
 ## Language
-WitAI supports over 120 languages (https://wit.ai/faq), however only one language can be used at a time.
-If you're not speaking English on Discord, then change your default language on WitAI under "settings" for your app.
+
+---
+**TODO** not yet implemented for google api
+
+---
 
 You can also change the language using the following bot command:
 
@@ -104,26 +117,7 @@ The bot should reply with a success message.
 https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
 ```
 
-## For developers
-Using Mozilla DeepSpeech for speech recognition, [tutorial](https://medium.com/@ilyanevolin/discord-stt-bot-using-mozilla-deepspeech-e77ee28937eb).
+---
+**TODO** add contributing guide
 
-### Speech-To-Text
-
-By default WitAI's free API is used for voice recognition / transcription. But you can easily integrate any other API into the bot. You can use Google's Speech-to-Text API as follows:
-
-1. Open `index.js`, inside the function `transcribe(file)` make sure that `transcribe_gspeech` is being used and the other one(s) are disabled.
-2. You may want to adjust the `languageCode` value if you're speaking a non-English language.
-3. Enable Google Speech API here: https://console.cloud.google.com/apis/library/speech.googleapis.com
-4. Create a new Service Account (or use your existing one): https://console.cloud.google.com/apis/credentials
-5. Create a new Service Account Key (or use existing) and download the json file.
-6. Put the json file inside your bot directory and rename it to `gspeech_key.json`.
-
-## Contact
-
-For enquiries or issues get in touch with me:
-
-Name: [Ilya Nevolin](https://www.linkedin.com/in/iljanevolin/)
-
-Email: ilja.nevolin@gmail.com
-
-Discord: https://discord.gg/ApdTMG9
+---
