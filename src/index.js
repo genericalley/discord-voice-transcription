@@ -1,45 +1,22 @@
-function getCurrentDateString() {
-  return new Date().toISOString() + " ::";
-}
+import Discord from "discord.js";
+import GoogleSpeech from "@google-cloud/speech";
+import fs from "fs";
+import { Readable } from "stream";
 
-// TODO: rewrite so it works for all log levels
-__originalLog = console.log;
-console.log = function () {
-  var args = [].slice.call(arguments);
-  __originalLog.apply(console.log, [getCurrentDateString()].concat(args));
-};
+import { HELP, DEBUG, JOIN, LEAVE, HELP_TEXT } from "./commands";
+import { convertAudio, prefixUsername } from "./utils";
 
-const fs = require("fs");
-const { Readable } = require("stream");
-//
-// function necessary_dirs() {
-//     if (!fs.existsSync('./data/')){
-//         fs.mkdirSync('./data/');
-//     }
-// }
-// necessary_dirs()
-
-async function convert_audio(input) {
-  try {
-    // stereo to mono channel
-    const data = new Int16Array(input);
-    const ndata = new Int16Array(data.length / 2);
-    for (let i = 0, j = 0; i < data.length; i += 4) {
-      ndata[j++] = data[i];
-      ndata[j++] = data[i + 1];
-    }
-    return Buffer.from(ndata);
-  } catch (e) {
-    console.log(e);
-    console.log("convert_audio: " + e);
-    throw e;
-  }
-}
+["debug", "info", "error", "log", "warn"].forEach((logLevel) => {
+  const originalFn = console[logLevel];
+  console[logLevel] = (msg, ...args) =>
+    originalFn(new Date().toISOString() + " ::", msg, ...args);
+});
 
 const SETTINGS_FILE = "settings.json";
 
 let DISCORD_TOK = null;
 
+// TODO: remove support for settings file, stipulate envvars to avoid accidentally sharing secrets
 function loadConfig() {
   if (fs.existsSync(SETTINGS_FILE)) {
     const CFG_DATA = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
@@ -51,7 +28,7 @@ function loadConfig() {
 }
 loadConfig();
 
-const Discord = require("discord.js");
+// TODO: actually limit msg size based on this var
 const DISCORD_MSG_LIMIT = 2000;
 const discordClient = new Discord.Client();
 if (process.env.DEBUG) discordClient.on("debug", console.debug);
@@ -60,30 +37,20 @@ discordClient.on("ready", () => {
 });
 discordClient.login(DISCORD_TOK);
 
-const PREFIX = "*";
-// TODO: refactor so these definitions supply the help text
-const _CMD_HELP = PREFIX + "help";
-const _CMD_JOIN = PREFIX + "join";
-const _CMD_LEAVE = PREFIX + "leave";
-const _CMD_DEBUG = PREFIX + "debug";
-const _CMD_TEST = PREFIX + "hello";
-// const _CMD_LANG        = PREFIX + 'lang';
-// TODO: add multiple language support (but would this change it for all users?)
-
 const guildMap = new Map();
 
 discordClient.on("message", async (msg) => {
   try {
     if (!("guild" in msg) || !msg.guild) return; // prevent private messages to bot
     const mapKey = msg.guild.id;
-    if (msg.content.trim().toLowerCase() === _CMD_JOIN) {
+    if (msg.content.trim().toLowerCase() === JOIN) {
       if (!msg.member.voice.channelID) {
         msg.reply("Error: please join a voice channel first.");
       } else {
         if (!guildMap.has(mapKey)) await connect(msg, mapKey);
         else msg.reply("Already connected");
       }
-    } else if (msg.content.trim().toLowerCase() === _CMD_LEAVE) {
+    } else if (msg.content.trim().toLowerCase() === LEAVE) {
       if (guildMap.has(mapKey)) {
         let val = guildMap.get(mapKey);
         if (val.voice_Channel) val.voice_Channel.leave();
@@ -93,15 +60,13 @@ discordClient.on("message", async (msg) => {
       } else {
         msg.reply("Cannot leave because not connected.");
       }
-    } else if (msg.content.trim().toLowerCase() === _CMD_HELP) {
-      msg.reply(getHelpString());
-    } else if (msg.content.trim().toLowerCase() === _CMD_DEBUG) {
+    } else if (msg.content.trim().toLowerCase() === HELP) {
+      msg.reply(HELP_TEXT);
+    } else if (msg.content.trim().toLowerCase() === DEBUG) {
       console.log("toggling debug mode");
       let val = guildMap.get(mapKey);
       if (val.debug) val.debug = false;
       else val.debug = true;
-    } else if (msg.content.trim().toLowerCase() === _CMD_TEST) {
-      msg.reply("hello back =)");
     }
   } catch (e) {
     console.log("discordClient message: " + e);
@@ -110,15 +75,6 @@ discordClient.on("message", async (msg) => {
     );
   }
 });
-
-function getHelpString() {
-  let out = "**COMMANDS:**\n";
-  out += "```";
-  out += PREFIX + "join\n";
-  out += PREFIX + "leave\n";
-  out += "```";
-  return out;
-}
 
 const SILENCE_FRAME = Buffer.from([0xf8, 0xff, 0xfe]);
 
@@ -149,12 +105,11 @@ async function connect(msg, mapKey) {
     });
     speak_impl(voice_Connection, mapKey);
     voice_Connection.on("disconnect", async (e) => {
-      if (e) console.log(e);
+      if (e) console.error(e);
       guildMap.delete(mapKey);
     });
     msg.reply("connected!");
   } catch (e) {
-    console.log("connect: " + e);
     msg.reply("Error: unable to join your voice channel.");
     throw e;
   }
@@ -190,30 +145,20 @@ function speak_impl(voice_Connection, mapKey) {
       }
 
       try {
-        let new_buffer = await convert_audio(buffer);
+        let new_buffer = await convertAudio(buffer);
         let out = await transcribe(new_buffer);
         if (out != null) {
           const member = voice_Connection.channel.guild.member(user);
-          prefix_username(out, mapKey, user, member);
+          prefixUsername(guildMap, out, mapKey, user, member);
         }
       } catch (e) {
-        console.log("tmpraw rename: " + e);
+        console.error(e);
       }
     });
   });
 }
 
-function prefix_username(txt, mapKey, user, member) {
-  if (txt && txt.length) {
-    let val = guildMap.get(mapKey);
-    member.displayName
-      ? val.text_Channel.send(member.displayName + ": " + txt)
-      : val.text_Channel.send(user.username + ": " + txt);
-  }
-}
-
-const gspeech = require("@google-cloud/speech");
-const gspeechclient = new gspeech.SpeechClient({
+const gspeechclient = new GoogleSpeech.SpeechClient({
   projectId: "discordbot",
   keyFilename: "gspeech_key.json",
 });
