@@ -62,7 +62,7 @@ DISCORD_TOK
 
 Execute the following in your shell or prompt:
 ```
-node index.js
+yarn start
 ```
 
 Use [PM2](https://www.npmjs.com/package/pm2) to keep the bot running 24/7, it will also restart the bot in case of a crash or on memory limits (2GB default):
