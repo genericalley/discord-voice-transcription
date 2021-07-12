@@ -10,5 +10,4 @@ export const HELP_TEXT = `**COMMANDS**:
   \`${HELP}\`: Show this help text
   \`${JOIN}\`: Begin transcribing your current VC
   \`${LEAVE}\`: Stop transcribing your current VC
-  \`${DEBUG}\`: Toggle the logging of debug info (devs only)
 `;
